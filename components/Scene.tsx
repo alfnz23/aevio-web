@@ -299,66 +299,71 @@ export default function Scene({ onSectionChange }: SceneProps) {
     let killScrollTriggers: (() => void) | null = null
 
     ;(async () => {
-      const gsap = await configureGSAP()
-      const { ScrollTrigger } = await import('gsap/ScrollTrigger')
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: '#scroll-spacer',
-          start: 'top top',
-          end: 'bottom bottom',
-          scrub: 1.5,
-          onUpdate: (self) => {
-            const p = self.progress
-            const section =
-              p < 0.15 ? 0 : p < 0.35 ? 1 : p < 0.55 ? 2 : p < 0.75 ? 3 : 4
-            if (onSectionChange) onSectionChange(section)
+      // Only set up scroll animation if user hasn't requested reduced motion
+      if (!prefersReducedMotion) {
+        const gsap = await configureGSAP()
+        const { ScrollTrigger } = await import('gsap/ScrollTrigger')
 
-            // Show/hide satellites
-            satelliteGroup.visible = section === 3
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: '#scroll-spacer',
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 1.5,
+            onUpdate: (self) => {
+              const p = self.progress
+              const section =
+                p < 0.15 ? 0 : p < 0.35 ? 1 : p < 0.55 ? 2 : p < 0.75 ? 3 : 4
+              if (onSectionChange) onSectionChange(section)
 
-            // Section 4: activate all neural lines
-            if (section === 4) {
-              lineMat.opacity = 0.8
-            } else if (!pulseActive) {
-              lineMat.opacity = 0.3
-            }
+              // Show/hide satellites
+              satelliteGroup.visible = section === 3
+
+              // Section 4: activate all neural lines
+              if (section === 4) {
+                lineMat.opacity = 0.8
+              } else if (!pulseActive) {
+                lineMat.opacity = 0.3
+              }
+            },
           },
-        },
-      })
+        })
 
-      // Camera keyframes via proxy
-      tl.to(
-        camProxy,
-        { z: 4, y: 0.5, duration: 0.2, ease: 'power2.inOut' },
-        0.15,
-      )
-      tl.to(
-        camProxy,
-        { z: 1.2, y: 0, duration: 0.2, ease: 'power2.inOut' },
-        0.35,
-      )
-      tl.to(
-        camProxy,
-        { z: 5, y: -0.5, duration: 0.2, ease: 'power2.inOut' },
-        0.55,
-      )
-      tl.to(
-        camProxy,
-        { z: 7, y: 0, duration: 0.2, ease: 'power2.inOut' },
-        0.75,
-      )
+        // Camera keyframes via proxy
+        tl.to(
+          camProxy,
+          { z: 4, y: 0.5, duration: 0.2, ease: 'power2.inOut' },
+          0.15,
+        )
+        tl.to(
+          camProxy,
+          { z: 1.2, y: 0, duration: 0.2, ease: 'power2.inOut' },
+          0.35,
+        )
+        tl.to(
+          camProxy,
+          { z: 5, y: -0.5, duration: 0.2, ease: 'power2.inOut' },
+          0.55,
+        )
+        tl.to(
+          camProxy,
+          { z: 7, y: 0, duration: 0.2, ease: 'power2.inOut' },
+          0.75,
+        )
 
-      // Background shift via body background color
-      tl.to(document.body, { backgroundColor: '#EDE8E0', duration: 1 }, 0)
+        // Background shift via body background color
+        tl.to(document.body, { backgroundColor: '#EDE8E0', duration: 1 }, 0)
 
-      // Inner light intensity: stays 3 until section 4, then spikes to 8
-      tl.to(innerLight, { intensity: 8, duration: 0.1 }, 0.85)
-      tl.to(innerLight, { intensity: 3, duration: 0.1 }, 1.0)
+        // Inner light intensity: stays 3 until section 4, then spikes to 8
+        tl.to(innerLight, { intensity: 8, duration: 0.1 }, 0.85)
+        tl.to(innerLight, { intensity: 3, duration: 0.1 }, 1.0)
 
-      killScrollTriggers = () => {
-        ScrollTrigger.getAll().forEach((t) => t.kill())
-        tl.kill()
+        killScrollTriggers = () => {
+          ScrollTrigger.getAll().forEach((t) => t.kill())
+          tl.kill()
+        }
       }
     })()
 
