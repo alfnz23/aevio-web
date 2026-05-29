@@ -213,25 +213,6 @@ function Node3() {
   )
 }
 
-function OpenSpace() {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1.8, delay: 0.6 }}
-      style={{
-        position: 'absolute',
-        bottom: '12%', left: 0, right: 0,
-        textAlign: 'center',
-        ...mono, fontSize: '11px',
-        color: '#4A5A50',
-      }}
-    >
-      AEVIO AI&nbsp;&nbsp;·&nbsp;&nbsp;INTELLIGENCE SYSTEMS
-    </motion.div>
-  )
-}
-
 function CoreContent() {
   return (
     <>
@@ -314,7 +295,6 @@ export default function NodeContent({ node }: NodeContentProps) {
     2: <Node2 />,
     3: <Node3 />,
     4: <CoreContent />,
-    5: <OpenSpace />,
   }
 
   return (

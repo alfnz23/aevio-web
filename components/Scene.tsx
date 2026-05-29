@@ -229,19 +229,19 @@ export default function Scene({ onNodeChange }: SceneProps) {
       }
     }
 
-    // ── CAMERA PATH (core → open space) ─────────────────────────────
+    // ── CAMERA PATH ─────────────────────────────────────────────────
     const pathPoints = [
-      new THREE.Vector3(0,   0,  -44),   // CORE (start)
-      new THREE.Vector3(1,  -1,  -35),   // growth node
-      new THREE.Vector3(3,   2,  -29),
-      new THREE.Vector3(-4, -2,  -22),   // packages node — no sphere
-      new THREE.Vector3(-1,  4,  -15),
-      new THREE.Vector3(6,   1,   -8),   // agents node
-      new THREE.Vector3(2,  -2,    0),
-      new THREE.Vector3(-5,  3,    6),   // hero node
-      new THREE.Vector3(-3,  1,   14),
+      new THREE.Vector3(0,   0,   35),
       new THREE.Vector3(0,   0,   22),
-      new THREE.Vector3(0,   0,   35),   // open space (end)
+      new THREE.Vector3(-3,  1,   14),
+      new THREE.Vector3(-5,  3,    6),   // NODE 0
+      new THREE.Vector3(2,  -2,    0),
+      new THREE.Vector3(6,   1,   -8),   // NODE 1
+      new THREE.Vector3(-1,  4,  -15),
+      new THREE.Vector3(-4, -2,  -22),   // NODE 2
+      new THREE.Vector3(3,   2,  -29),
+      new THREE.Vector3(1,  -1,  -35),   // NODE 3
+      new THREE.Vector3(0,   0,  -44),   // CORE
     ]
     const cameraPath = new THREE.CatmullRomCurve3(pathPoints)
 
@@ -249,7 +249,7 @@ export default function Scene({ onNodeChange }: SceneProps) {
     const majorMat = new THREE.SpriteMaterial({ map: nodeTexWarm, transparent: true })
     const majorLights: THREE.PointLight[] = []
 
-    for (const pos of [pathPoints[1], pathPoints[5], pathPoints[7]]) {
+    for (const pos of [pathPoints[3], pathPoints[5], pathPoints[9]]) {
       const sprite = new THREE.Sprite(majorMat)
       sprite.scale.setScalar(0.4)
       sprite.position.copy(pos)
@@ -262,7 +262,7 @@ export default function Scene({ onNodeChange }: SceneProps) {
     }
 
     // ── CORE COMMAND CENTER ─────────────────────────────────────────
-    const corePos   = pathPoints[0]
+    const corePos   = pathPoints[10]
     const coreGroup = new THREE.Group()
     coreGroup.position.copy(corePos)
     scene.add(coreGroup)
@@ -340,12 +340,11 @@ export default function Scene({ onNodeChange }: SceneProps) {
     let coreTriggered = false
 
     function getNode(t: number): number {
-      if (t < 0.06) return 4   // CORE
-      if (t < 0.16) return 3   // growth
-      if (t < 0.35) return 2   // packages
-      if (t < 0.55) return 1   // agents
-      if (t < 0.74) return 0   // hero
-      if (t > 0.88) return 5   // open space — tagline
+      if (t > 0.94) return 4
+      if (t > 0.84) return 3
+      if (t > 0.65) return 2
+      if (t > 0.45) return 1
+      if (t > 0.26) return 0
       return -1
     }
 
@@ -428,7 +427,7 @@ export default function Scene({ onNodeChange }: SceneProps) {
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
       const gsap = await configureGSAP()
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
-      gsap.to(scrollProxy, {
+      const tween = gsap.to(scrollProxy, {
         t: 1, ease: 'none',
         scrollTrigger: {
           trigger: '#scroll-spacer',
@@ -437,6 +436,9 @@ export default function Scene({ onNodeChange }: SceneProps) {
           scrub: 2.0,
         },
       })
+      // Start at journey end (core) — user scrolls up to explore network
+      const st = tween.scrollTrigger
+      if (st) st.scroll(st.end)
       killTriggers = () => ScrollTrigger.getAll().forEach(st => st.kill())
     })()
 
