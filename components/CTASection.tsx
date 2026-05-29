@@ -125,8 +125,7 @@ export default function CTASection() {
           transition={{ duration: 0.7, delay: 1.5 }}
           style={{ fontFamily: 'var(--font-space-mono)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#4A5A50', lineHeight: 2, textAlign: 'center' }}
         >
-          <div>aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;IČO 88054667</div>
-          <div>Aevio AI&nbsp;&nbsp;·&nbsp;&nbsp;Czech Republic&nbsp;&nbsp;·&nbsp;&nbsp;2026</div>
+          <div>aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;Aevio AI&nbsp;&nbsp;·&nbsp;&nbsp;Czech Republic&nbsp;&nbsp;·&nbsp;&nbsp;2026</div>
         </motion.div>
       </div>
 

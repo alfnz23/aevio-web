@@ -160,9 +160,9 @@ function Node2() {
           transition={{ delay: 0.1 + i * 0.15, duration: 0.6 }}
           style={{ position: 'absolute', ...p.style }}
         >
-          <div style={{ ...mono, fontSize: '9px', color: '#6A8070', marginBottom: '6px' }}>{p.id}</div>
-          <div style={{ ...mono, fontSize: '11px', color: '#E8E0D0', marginBottom: '4px', textTransform: 'none', letterSpacing: '0.05em' }}>{p.name}</div>
-          <div style={{ ...mono, fontSize: '9px', color: '#C8A96E' }}>{p.price}</div>
+          <div style={{ ...mono, fontSize: '16px', color: '#6A8070', marginBottom: '8px' }}>{p.id}</div>
+          <div style={{ ...mono, fontSize: '22px', color: '#E8E0D0', marginBottom: '8px', textTransform: 'none', letterSpacing: '0.03em' }}>{p.name}</div>
+          <div style={{ ...mono, fontSize: '20px', color: '#C8A96E' }}>{p.price}</div>
         </motion.div>
       ))}
 
@@ -260,8 +260,7 @@ function CoreContent() {
             textTransform: 'uppercase', letterSpacing: '0.12em',
           }}
         >
-          <div>aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;IČO 88054667</div>
-          <div>Aevio AI&nbsp;&nbsp;·&nbsp;&nbsp;Czech Republic&nbsp;&nbsp;·&nbsp;&nbsp;2026</div>
+          <div>aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;Aevio AI&nbsp;&nbsp;·&nbsp;&nbsp;Czech Republic&nbsp;&nbsp;·&nbsp;&nbsp;2026</div>
         </motion.div>
       </motion.div>
 
@@ -289,12 +288,17 @@ function CoreContent() {
 }
 
 export default function NodeContent({ node }: NodeContentProps) {
+  // Scroll order (user scrolls UP from core): node4→3→2→1→0
+  // 4: no text (page load — just the visual core)
+  // 3: hero text (first stop scrolling up)
+  // 2: agents
+  // 1: packages
+  // 0: CTA "Připraveni?" (end of scroll)
   const nodeMap: Record<number, React.ReactNode> = {
-    0: <Node0 />,
-    1: <Node1 />,
-    2: <Node2 />,
-    3: <Node3 />,
-    4: <CoreContent />,
+    0: <CoreContent />,
+    1: <Node2 />,
+    2: <Node1 />,
+    3: <Node0 />,
   }
 
   return (

@@ -47,7 +47,7 @@ function MobileLayout() {
       {/* Footer */}
       <div style={{ padding: '24px', borderTop: '1px solid rgba(200,169,110,0.1)', textAlign: 'center' }}>
         <p style={{ fontFamily: 'var(--font-space-mono)', fontSize: '10px', color: '#4A5A50', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;IČO 88054667
+          aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;Aevio AI&nbsp;&nbsp;·&nbsp;&nbsp;Czech Republic&nbsp;&nbsp;·&nbsp;&nbsp;2026
         </p>
       </div>
     </main>
