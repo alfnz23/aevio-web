@@ -2,15 +2,16 @@
 import dynamic from 'next/dynamic'
 import { useState, useEffect } from 'react'
 import Annotations from '@/components/Annotations'
-import Cursor from '@/components/Cursor'
 import Navigation from '@/components/Navigation'
 import LoadingScreen from '@/components/LoadingScreen'
 
-// Dynamic import for Scene — Three.js cannot run on server
+// Dynamic imports — Three.js and browser APIs cannot run on server
 const Scene = dynamic(() => import('@/components/Scene'), {
   ssr: false,
-  loading: () => null,
+  loading: () => <div style={{ background: '#F2EDE6', height: '100vh' }} />,
 })
+
+const Cursor = dynamic(() => import('@/components/Cursor'), { ssr: false })
 
 export default function Home() {
   const [section, setSection] = useState(0)
@@ -25,15 +26,15 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Simulate load progress (Three.js doesn't emit events)
+  // Simulate load progress — reaches 1.0 to trigger onComplete in LoadingScreen
   useEffect(() => {
     if (loaded) return
     const start = Date.now()
     const duration = 2200 // ms
     const tick = () => {
-      const p = Math.min((Date.now() - start) / duration, 0.99)
+      const p = Math.min((Date.now() - start) / duration, 1)
       setLoadProgress(p)
-      if (p < 0.99) requestAnimationFrame(tick)
+      if (p < 1) requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
   }, [loaded])
