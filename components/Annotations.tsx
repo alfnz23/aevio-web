@@ -49,7 +49,7 @@ function LeaderLine({ x1, y1, length = 60 }: { x1: number; y1: number; length?: 
 
 const sectionVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.4 } },
+  visible: { opacity: 1, transition: { duration: 0.8 } },
   exit: { opacity: 0, transition: { duration: 0.3 } },
 }
 
@@ -117,17 +117,17 @@ function Section0() {
 
       {/* Large headline, centered bottom third */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.42, duration: 0.6, ease: 'easeOut' }}
+        transition={{ delay: 0.42, duration: 0.8, ease: 'easeOut' }}
         style={{
           position: 'absolute',
-          bottom: '18vh',
-          left: 0,
-          right: 0,
-          textAlign: 'center',
+          bottom: '15%',
+          left: '8%',
+          right: 'auto',
+          textAlign: 'left',
           ...headlineStyle,
-          fontSize: 'clamp(28px, 4vw, 42px)',
+          fontSize: 'clamp(40px, 4.5vw, 58px)',
         }}
       >
         <div>Vaše firma.</div>
@@ -168,9 +168,9 @@ function Section1() {
     <>
       {/* Center headline */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.5, ease: 'easeOut' }}
+        transition={{ delay: 0.1, duration: 0.8, ease: 'easeOut' }}
         style={{
           position: 'absolute',
           top: '50%',
@@ -179,7 +179,7 @@ function Section1() {
           transform: 'translateY(-50%)',
           textAlign: 'center',
           ...headlineStyle,
-          fontSize: 'clamp(22px, 3vw, 32px)',
+          fontSize: 'clamp(32px, 3.5vw, 48px)',
         }}
       >
         Síť agentů která nikdy nespí.
@@ -254,9 +254,9 @@ function Section2() {
 
       {/* Center bottom headline */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.34, duration: 0.5, ease: 'easeOut' }}
+        transition={{ delay: 0.34, duration: 0.8, ease: 'easeOut' }}
         style={{
           position: 'absolute',
           bottom: '15vh',
@@ -264,7 +264,7 @@ function Section2() {
           right: 0,
           textAlign: 'center',
           ...headlineStyle,
-          fontSize: 'clamp(24px, 3.5vw, 36px)',
+          fontSize: 'clamp(32px, 3.5vw, 48px)',
         }}
       >
         <div>Sedm agentů.</div>
@@ -324,9 +324,9 @@ function Section3() {
 
       {/* Bottom headline */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.34, duration: 0.5, ease: 'easeOut' }}
+        transition={{ delay: 0.34, duration: 0.8, ease: 'easeOut' }}
         style={{
           position: 'absolute',
           bottom: '15vh',
@@ -334,7 +334,7 @@ function Section3() {
           right: 0,
           textAlign: 'center',
           ...headlineStyle,
-          fontSize: 'clamp(22px, 3vw, 32px)',
+          fontSize: 'clamp(30px, 3vw, 48px)',
         }}
       >
         Vyberte svůj vstupní bod.
@@ -348,68 +348,75 @@ function Section3() {
 function Section4() {
   return (
     <>
-      {/* Center large headline */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.6, ease: 'easeOut' }}
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: 0,
-          right: 0,
-          transform: 'translateY(-60%)',
-          textAlign: 'center',
-          ...headlineStyle,
-          fontSize: 'clamp(36px, 5vw, 52px)',
-        }}
-      >
-        Připraveni?
-      </motion.div>
-
-      {/* CTA Button */}
+      {/* Centered column: headline → 40px gap → CTA → 40px gap → contact */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
+        transition={{ duration: 0.6 }}
         style={{
           position: 'absolute',
-          top: '50%',
-          left: 0,
-          right: 0,
+          inset: 0,
           display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           justifyContent: 'center',
-          pointerEvents: 'auto',
+          gap: '0px',
+          pointerEvents: 'none',
         }}
       >
-        <CTAButton />
+        {/* Headline */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.8, ease: 'easeOut' }}
+          style={{
+            fontFamily: 'var(--font-playfair), serif',
+            fontStyle: 'italic',
+            color: '#0F0C08',
+            fontSize: 'clamp(48px, 6vw, 72px)',
+            lineHeight: 1.1,
+            textAlign: 'center',
+            marginBottom: '40px',
+          }}
+        >
+          Připraveni?
+        </motion.div>
+
+        {/* CTA Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.6 }}
+          style={{ pointerEvents: 'auto', marginBottom: '40px' }}
+        >
+          <CTAButton />
+        </motion.div>
+
+        {/* Contact info */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.55, duration: 0.5 }}
+          style={{
+            fontFamily: 'var(--font-space-mono), monospace',
+            fontSize: '10px',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#8A8070',
+            lineHeight: 2,
+            textAlign: 'center',
+          }}
+        >
+          <div>aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;IČO 88054667</div>
+          <div>Aevio AI&nbsp;&nbsp;·&nbsp;&nbsp;Czech Republic&nbsp;&nbsp;·&nbsp;&nbsp;2026</div>
+        </motion.div>
       </motion.div>
 
-      {/* Contact info below CTA */}
+      {/* Bottom-right GDPR link — independent positioning */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.46, duration: 0.4 }}
-        style={{
-          position: 'absolute',
-          top: 'calc(50% + 80px)',
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          ...annotationStyle,
-          fontSize: '10px',
-          lineHeight: 2,
-        }}
-      >
-        <div>aevioai@gmail.com&nbsp;&nbsp;·&nbsp;&nbsp;IČO 88054667</div>
-        <div>Aevio AI&nbsp;&nbsp;·&nbsp;&nbsp;Czech Republic&nbsp;&nbsp;·&nbsp;&nbsp;2026</div>
-      </motion.div>
-
-      {/* Bottom-right GDPR link */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.54, duration: 0.4 }}
+        transition={{ delay: 0.7, duration: 0.4 }}
         style={{
           position: 'absolute',
           bottom: '28px',
@@ -420,10 +427,12 @@ function Section4() {
         <a
           href="#"
           style={{
-            ...annotationStyle,
+            fontFamily: 'var(--font-space-mono), monospace',
             fontSize: '10px',
-            textDecoration: 'none',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
             color: '#8A8070',
+            textDecoration: 'none',
           }}
         >
           ↗&nbsp;&nbsp;GDPR Checklist pro e-shopy&nbsp;&nbsp;·&nbsp;&nbsp;990 Kč
