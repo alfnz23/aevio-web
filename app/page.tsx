@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useState } from 'react'
 import LoadingScreen from '@/components/LoadingScreen'
 import NodeContent from '@/components/NodeContent'
+import IntroOverlay from '@/components/IntroOverlay'
 
 const Scene = dynamic(() => import('@/components/Scene'), { ssr: false })
 const Cursor = dynamic(() => import('@/components/Cursor'), { ssr: false })
@@ -94,6 +95,9 @@ export default function Home() {
 
       {/* Fixed Three.js canvas */}
       <Scene onNodeChange={handleNodeChange} />
+
+      {/* Intro overlay — visible after loader, dismissed on first scroll */}
+      <IntroOverlay show={sceneReady} />
 
       {/* Framer Motion HTML overlay — node content */}
       <NodeContent node={activeNode} />
