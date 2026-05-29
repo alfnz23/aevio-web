@@ -19,8 +19,7 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   title: 'Aevio AI — Intelligence Systems',
-  description: 'Autonomní AI agenti pro české e-commerce. Zákaznický servis, prodej a operace bez přestávky.',
-  keywords: 'AI, e-commerce, automatizace, zákaznický servis, Czech',
+  description: 'Autonomní AI agenti pro české e-commerce.',
   openGraph: {
     title: 'Aevio AI — Intelligence Systems',
     description: 'Vaše firma. Řízená inteligencí. Nepřetržitě.',
@@ -28,17 +27,12 @@ export const metadata: Metadata = {
   },
 }
 
-export const viewport = {
-  width: 'device-width',
-  initialScale: 1,
-}
+export const viewport = { width: 'device-width', initialScale: 1 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="cs" className={`${spaceMono.variable} ${playfair.variable}`}>
-      <body style={{ backgroundColor: '#030810', color: '#E8E0D0' }}>
-        {children}
-      </body>
+      <body style={{ backgroundColor: '#030810', color: '#E8E0D0' }}>{children}</body>
     </html>
   )
 }

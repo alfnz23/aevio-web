@@ -4,29 +4,21 @@
 
 :root {
   --bg: #030810;
-  --tube: #0D2B45;
-  --tube-em: #1A5080;
-  --synapse-warm: #FFD4A0;
-  --synapse-cool: #C8E0FF;
+  --warm: #FFD4A0;
+  --cool: #C8E0FF;
   --text: #E8E0D0;
   --gold: #C8A96E;
-  --annotation: #6A8070;
+  --ann: #6A8070;
   --dim: #4A5A50;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-html {
-  scroll-behavior: auto;
-}
+html { scroll-behavior: auto; }
 
 body {
-  background-color: #030810;
-  color: var(--text);
+  background: #030810;
+  color: #E8E0D0;
   cursor: none;
   overflow-x: hidden;
 }
@@ -41,24 +33,4 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* Loading screen tube draw animation */
-.tube-draw {
-  stroke-dasharray: 250;
-  stroke-dashoffset: 250;
-  animation: drawTube 0.7s ease forwards;
-}
-
-@keyframes drawTube {
-  to { stroke-dashoffset: 0; }
-}
-
-.node-pulse {
-  animation: nodePulse 1.5s ease-in-out infinite;
-}
-
-@keyframes nodePulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.3); }
 }
