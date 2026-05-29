@@ -28,7 +28,7 @@ void main() {
   pulse = mix(0.3, 1.0, pulse * 0.3);
   float fog = 1.0 - smoothstep(10.0, 40.0, vDistance);
   vec3 color = uColor * glow * pulse * fog;
-  float alpha = glow * 0.85 * fog;
+  float alpha = glow * 0.9 * fog;
   gl_FragColor = vec4(color, alpha);
 }
 `
@@ -175,9 +175,9 @@ export default function Scene({ onNodeChange }: SceneProps) {
       branchCurves.push(curve)
 
       const originDist = pts[0].length()
-      const radius = originDist < 2 ? 0.06 + rng() * 0.04
-                   : originDist < 7 ? 0.03 + rng() * 0.03
-                   :                   0.015 + rng() * 0.02
+      const radius = originDist < 2 ? 0.015 + rng() * 0.01
+                   : originDist < 7 ? 0.0075 + rng() * 0.0075
+                   :                   0.00375 + rng() * 0.005
 
       const geo = new THREE.TubeGeometry(curve, 80, radius, 6, false)
       tubeGeos.push(geo)
@@ -204,7 +204,7 @@ export default function Scene({ onNodeChange }: SceneProps) {
           ))
         }
 
-        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(subPts), 40, 0.008 + rng() * 0.015, 4, false)
+        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(subPts), 40, 0.002 + rng() * 0.00375, 4, false)
         tubeGeos.push(geo)
         scene.add(new THREE.Mesh(geo, subMat))
       }
@@ -223,7 +223,7 @@ export default function Scene({ onNodeChange }: SceneProps) {
       for (const t of [1.0, 0.5]) {
         const pos    = branchCurves[b].getPoint(t)
         const sprite = new THREE.Sprite(b % 3 === 0 ? regularMatWarm : regularMatCool)
-        sprite.scale.setScalar(0.3 + rng() * 0.5)
+        sprite.scale.setScalar(0.05 + rng() * 0.1)
         sprite.position.copy(pos)
         scene.add(sprite)
       }
@@ -245,13 +245,13 @@ export default function Scene({ onNodeChange }: SceneProps) {
     ]
     const cameraPath = new THREE.CatmullRomCurve3(pathPoints)
 
-    // ── MAJOR NODE SPRITES (1.5× scale, warm, with PointLight) ──────
+    // ── MAJOR NODE SPRITES (nodes 0, 1, 3 — packages node has no sphere) ──
     const majorMat = new THREE.SpriteMaterial({ map: nodeTexWarm, transparent: true })
     const majorLights: THREE.PointLight[] = []
 
-    for (const pos of [pathPoints[3], pathPoints[5], pathPoints[7], pathPoints[9]]) {
+    for (const pos of [pathPoints[3], pathPoints[5], pathPoints[9]]) {
       const sprite = new THREE.Sprite(majorMat)
-      sprite.scale.setScalar(1.5)
+      sprite.scale.setScalar(0.4)
       sprite.position.copy(pos)
       scene.add(sprite)
 
@@ -269,35 +269,29 @@ export default function Scene({ onNodeChange }: SceneProps) {
 
     const nucleusMat = new THREE.SpriteMaterial({ map: nodeTexWarm, transparent: true })
     const nucleus = new THREE.Sprite(nucleusMat)
-    nucleus.scale.setScalar(3.0)
+    nucleus.scale.setScalar(0.3)
     coreGroup.add(nucleus)
 
     const coreLight = new THREE.PointLight(0xFFD4A0, 5.0, 25)
     coreGroup.add(coreLight)
 
-    // 3 tilted orbital rings
-    const ringConfigs = [
-      { r: 2.0, count: 8,  tiltX: 0,    tiltZ: 0,    speed:  0.004  },
-      { r: 3.5, count: 12, tiltX: 0.95, tiltZ: 0,    speed: -0.003  },
-      { r: 5.0, count: 10, tiltX: 0.4,  tiltZ: 0.6,  speed:  0.002  },
-    ]
-    const orbitalMat = new THREE.SpriteMaterial({ map: nodeTexWarm, transparent: true, opacity: 0.9 })
-    const ringGroups: { group: THREE.Group; speed: number }[] = []
+    // 3 thin TorusGeometry orbital rings
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xC8A96E, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+    const torusGeos: THREE.BufferGeometry[] = []
+    const ringGroups: { mesh: THREE.Mesh; speed: number }[] = []
 
-    for (const cfg of ringConfigs) {
-      const group = new THREE.Group()
-      group.rotation.x = cfg.tiltX
-      group.rotation.z = cfg.tiltZ
-      coreGroup.add(group)
-
-      for (let i = 0; i < cfg.count; i++) {
-        const angle  = (i / cfg.count) * Math.PI * 2
-        const orb    = new THREE.Sprite(orbitalMat)
-        orb.scale.setScalar(0.45)
-        orb.position.set(Math.cos(angle) * cfg.r, 0, Math.sin(angle) * cfg.r)
-        group.add(orb)
-      }
-      ringGroups.push({ group, speed: cfg.speed })
+    for (const cfg of [
+      { r: 0.8, tiltX: 0,    tiltZ: 0,    speed:  0.004 },
+      { r: 1.4, tiltX: 0.95, tiltZ: 0,    speed: -0.003 },
+      { r: 2.0, tiltX: 0.4,  tiltZ: 0.6,  speed:  0.002 },
+    ]) {
+      const geo = new THREE.TorusGeometry(cfg.r, 0.008, 6, 64)
+      const mesh = new THREE.Mesh(geo, ringMat)
+      mesh.rotation.x = cfg.tiltX
+      mesh.rotation.z = cfg.tiltZ
+      torusGeos.push(geo)
+      coreGroup.add(mesh)
+      ringGroups.push({ mesh, speed: cfg.speed })
     }
 
     // ── ELECTRICAL PULSE POOL ───────────────────────────────────────
@@ -414,7 +408,7 @@ export default function Scene({ onNodeChange }: SceneProps) {
       }
 
       // Core orbital rotation
-      for (const r of ringGroups) r.group.rotation.y += r.speed
+      for (const r of ringGroups) r.mesh.rotation.y += r.speed
 
       // Nucleus slow rotation (world-space: rotate parent group)
       coreGroup.rotation.y += delta * 0.08
@@ -463,7 +457,8 @@ export default function Scene({ onNodeChange }: SceneProps) {
       regularMatCool.dispose()
       majorMat.dispose()
       nucleusMat.dispose()
-      orbitalMat.dispose()
+      torusGeos.forEach(g => g.dispose())
+      ringMat.dispose()
       pulseMat.dispose()
       renderer.dispose()
     }
