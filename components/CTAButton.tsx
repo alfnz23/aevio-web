@@ -1,30 +1,31 @@
 'use client'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
 
 export default function CTAButton() {
+  const [hovered, setHovered] = useState(false)
+
   return (
-    <motion.a
+    <a
       href="mailto:aevioai@gmail.com"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      whileHover={{ backgroundColor: '#0F0C08', color: '#F2EDE6' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         display: 'inline-block',
-        padding: '14px 28px',
-        border: '1px solid #8A8070',
-        color: '#0F0C08',
-        backgroundColor: 'transparent',
+        padding: '20px 52px',
+        border: '1px solid rgba(200,169,110,0.6)',
+        backgroundColor: hovered ? '#C8A96E' : 'transparent',
+        color: hovered ? '#030810' : '#C8A96E',
         fontFamily: 'var(--font-space-mono), monospace',
-        fontSize: '11px',
+        fontSize: '13px',
         letterSpacing: '0.15em',
         textTransform: 'uppercase',
         textDecoration: 'none',
         cursor: 'none',
-        transition: 'background-color 0.2s ease, color 0.2s ease',
+        transition: 'background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease',
+        borderColor: hovered ? '#C8A96E' : 'rgba(200,169,110,0.6)',
       }}
     >
       DOMLUVIT BEZPLATNÝ AUDIT
-    </motion.a>
+    </a>
   )
 }

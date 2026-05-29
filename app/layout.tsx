@@ -33,14 +33,10 @@ export const viewport = {
   initialScale: 1,
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="cs" className={`${spaceMono.variable} ${playfair.variable}`}>
-      <body className="bg-cream text-text-primary antialiased">
+      <body style={{ backgroundColor: '#030810', color: '#E8E0D0' }}>
         {children}
       </body>
     </html>

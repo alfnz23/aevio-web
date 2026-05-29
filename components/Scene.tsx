@@ -1,282 +1,367 @@
 'use client'
-
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { simplex3 } from '@/lib/noise'
 import { configureGSAP } from '@/lib/gsap-config'
 
 interface SceneProps {
-  onSectionChange?: (section: number) => void
+  onNodeChange?: (node: number) => void
 }
 
-export default function Scene({ onSectionChange }: SceneProps) {
+// Seeded LCG for deterministic network generation
+function makeRng(seed: number) {
+  let s = seed >>> 0
+  return () => {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0
+    return s / 0xffffffff
+  }
+}
+
+// Dispose helper
+function disposeGroup(group: THREE.Group) {
+  group.traverse((obj) => {
+    if (obj instanceof THREE.Mesh || obj instanceof THREE.InstancedMesh || obj instanceof THREE.Points) {
+      obj.geometry?.dispose()
+      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose())
+      else obj.material?.dispose()
+    }
+  })
+}
+
+export default function Scene({ onNodeChange }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const onNodeChangeRef = useRef(onNodeChange)
+  useEffect(() => { onNodeChangeRef.current = onNodeChange }, [onNodeChange])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // ============================================================
-    // RENDERER
-    // ============================================================
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      alpha: false,
-    })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // ─── RENDERER ──────────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
     renderer.setSize(window.innerWidth, window.innerHeight)
-    renderer.setClearColor(0xf2ede6, 1)
+    renderer.setClearColor(0x030810, 1)
 
-    // ============================================================
-    // CAMERA
-    // ============================================================
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      100,
-    )
-    camera.position.set(0, 0, 8)
+    // ─── CAMERA ────────────────────────────────────────────────────────────
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 180)
 
-    // ============================================================
-    // SCENE
-    // ============================================================
+    // ─── SCENE ─────────────────────────────────────────────────────────────
     const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0xf2ede6, 0.05)
+    scene.fog = new THREE.FogExp2(0x030810, 0.022)
 
-    // ============================================================
-    // MAIN OBJECT — neural brain crystal
-    // ============================================================
-    const baseGeo = new THREE.SphereGeometry(2, 64, 64)
-    const geometry = baseGeo.toNonIndexed()
-    baseGeo.dispose()
+    // ─── LIGHTS ────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x0a1825, 0.9))
+    const globalBlue = new THREE.PointLight(0x1A5080, 1.5, 80)
+    scene.add(globalBlue)
 
-    const positions = geometry.attributes.position
-    const vertexCount = positions.count
-
-    for (let i = 0; i < vertexCount; i++) {
-      const ox = positions.getX(i)
-      const oy = positions.getY(i)
-      const oz = positions.getZ(i)
-      // Brain-like lumpy displacement (spec)
-      const dy = simplex3(ox * 0.8, oz * 0.8, 0) * 0.6
-      const dx = simplex3(oy * 0.6, oz * 0.9, 1.3) * 0.4
-      // Also a small radial term to keep organic roundness
-      const len = Math.sqrt(ox*ox + oy*oy + oz*oz)
-      const radial = simplex3(ox/len * 2.5, oy/len * 2.5, oz/len * 2.5) * 0.25
-      positions.setXYZ(i, ox + dx + (ox/len)*radial, oy + dy + (oy/len)*radial, oz + (oz/len)*radial)
+    // ─── STARS ─────────────────────────────────────────────────────────────
+    const starRng = makeRng(99)
+    const starPos = new Float32Array(500 * 3)
+    for (let i = 0; i < 500; i++) {
+      const theta = starRng() * Math.PI * 2
+      const phi = Math.acos(2 * starRng() - 1)
+      const r = 50 + starRng() * 25
+      starPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta)
+      starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+      starPos[i * 3 + 2] = r * Math.cos(phi)
     }
-    geometry.computeVertexNormals()
+    const starGeo = new THREE.BufferGeometry()
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3))
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.14, sizeAttenuation: true, transparent: true, opacity: 0.7 })
+    scene.add(new THREE.Points(starGeo, starMat))
 
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x1a1208,
-      roughness: 0.85,
-      metalness: 0.15,
-      emissive: new THREE.Color(0xc8a96e),
-      emissiveIntensity: 0.08,
-      side: THREE.FrontSide,
-    })
-
-    const mainObject = new THREE.Mesh(geometry, material)
-    scene.add(mainObject)
-
-    // ============================================================
-    // LIGHTING — internal glow + ambient + spot + depth points
-    // ============================================================
-    // Internal glow — intensity 4 (was 3)
-    const innerLight = new THREE.PointLight(0xc8a96e, 4, 10)
-    innerLight.position.set(0, 0, 0)
-    mainObject.add(innerLight)
-
-    // Ambient
-    const ambientLight = new THREE.AmbientLight(0xf2ede6, 0.35)
-    scene.add(ambientLight)
-
-    // Spot from above — approximates RectAreaLight
-    const topSpot = new THREE.SpotLight(0xd4a85a, 1.2, 20, Math.PI * 0.25, 0.6)
-    topSpot.position.set(0, 9, 2)
-    scene.add(topSpot)
-
-    // 3 depth PointLights for atmospheric depth
-    const warmLight = new THREE.PointLight(0xd4b896, 0.3, 20)
-    warmLight.position.set(5, 3, -4)
-    scene.add(warmLight)
-
-    const coolLight = new THREE.PointLight(0xe8e0d8, 0.2, 20)
-    coolLight.position.set(-4, -2, 3)
-    scene.add(coolLight)
-
-    const accentLight = new THREE.PointLight(0xc8a96e, 0.15, 20)
-    accentLight.position.set(0, 6, 0)
-    scene.add(accentLight)
-
-    // ============================================================
-    // BACKGROUND ATMOSPHERE — inverted sphere with radial gradient
-    // ============================================================
-    const bgGeo = new THREE.SphereGeometry(22, 32, 32)
-    const bgMat = new THREE.ShaderMaterial({
-      uniforms: {},
-      vertexShader: `
-        varying vec3 vPos;
-        void main() {
-          vPos = position;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vPos;
-        void main() {
-          float d = clamp(length(vPos.xz) / 22.0, 0.0, 1.0);
-          vec3 c0 = vec3(0.949, 0.929, 0.902); // #F2EDE6 center
-          vec3 c1 = vec3(0.898, 0.867, 0.831); // #E5DDD4 edge
-          gl_FragColor = vec4(mix(c0, c1, d * d), 1.0);
-        }
-      `,
-      side: THREE.BackSide,
-    })
-    const bgSphere = new THREE.Mesh(bgGeo, bgMat)
-    scene.add(bgSphere)
-
-    // ============================================================
-    // NEURAL NETWORK OVERLAY — fibonacci sphere points + lines
-    // ============================================================
-    const pointCount = 300
-    const pointPositions = new Float32Array(pointCount * 3)
-
-    for (let i = 0; i < pointCount; i++) {
-      const phi = Math.acos(1 - (2 * (i + 0.5)) / pointCount)
-      const theta = Math.PI * (1 + Math.sqrt(5)) * i
-      const r = 2.08
-      pointPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta)
-      pointPositions[i * 3 + 1] = r * Math.cos(phi)
-      pointPositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta)
-    }
-
-    const pointGeo = new THREE.BufferGeometry()
-    pointGeo.setAttribute(
-      'position',
-      new THREE.BufferAttribute(pointPositions, 3),
-    )
-    const pointMat = new THREE.PointsMaterial({
-      color: 0xc8a96e,
-      size: 0.04,
+    // ─── TUBE SHARED MATERIALS ─────────────────────────────────────────────
+    // 5 opacity bands shared across all main tubes
+    const mainOpacities = [0.55, 0.62, 0.68, 0.74, 0.80]
+    const tubeMats = mainOpacities.map(op => new THREE.MeshStandardMaterial({
+      color: 0x0D2B45,
+      emissive: new THREE.Color(0x1A5080),
+      emissiveIntensity: 0.4,
       transparent: true,
-      opacity: 0.6,
-      sizeAttenuation: true,
-    })
-    const pointsMesh = new THREE.Points(pointGeo, pointMat)
-    mainObject.add(pointsMesh)
+      opacity: op,
+      roughness: 0.05,
+      metalness: 0.1,
+      side: THREE.DoubleSide,
+    }))
 
-    // Find connections: pairs where distance < 0.8
-    const linePositions: number[] = []
-    for (let i = 0; i < pointCount; i++) {
-      for (let j = i + 1; j < pointCount; j++) {
-        const dx = pointPositions[i * 3] - pointPositions[j * 3]
-        const dy = pointPositions[i * 3 + 1] - pointPositions[j * 3 + 1]
-        const dz = pointPositions[i * 3 + 2] - pointPositions[j * 3 + 2]
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
-        if (dist < 0.8) {
-          linePositions.push(
-            pointPositions[i * 3],
-            pointPositions[i * 3 + 1],
-            pointPositions[i * 3 + 2],
-            pointPositions[j * 3],
-            pointPositions[j * 3 + 1],
-            pointPositions[j * 3 + 2],
-          )
-        }
-      }
-    }
-
-    const lineGeo = new THREE.BufferGeometry()
-    lineGeo.setAttribute(
-      'position',
-      new THREE.BufferAttribute(new Float32Array(linePositions), 3),
-    )
-    const lineMat = new THREE.LineBasicMaterial({
-      color: 0xc8a96e,
+    // 3 opacity bands for sub-dendrites (dimmer)
+    const subOpacities = [0.30, 0.40, 0.50]
+    const subMats = subOpacities.map(op => new THREE.MeshStandardMaterial({
+      color: 0x0D2B45,
+      emissive: new THREE.Color(0x1A5080),
+      emissiveIntensity: 0.25,
       transparent: true,
-      opacity: 0.25,
-    })
-    const linesMesh = new THREE.LineSegments(lineGeo, lineMat)
-    mainObject.add(linesMesh)
+      opacity: op,
+      roughness: 0.05,
+      side: THREE.DoubleSide,
+    }))
 
-    // ============================================================
-    // SATELLITE OBJECTS — appear in section 3
-    // ============================================================
-    const satelliteData = [
-      { angle: 0, distance: 3.5, size: 0.4 },
-      { angle: (2 * Math.PI) / 3, distance: 3.5, size: 0.38 },
-      { angle: (4 * Math.PI) / 3, distance: 3.5, size: 0.42 },
-    ]
+    // ─── NEURON TUBE NETWORK ───────────────────────────────────────────────
+    const rng = makeRng(7)
+    const branchCurves: THREE.CatmullRomCurve3[] = []
+    const tubeGeometries: THREE.BufferGeometry[] = []
+    const networkGroup = new THREE.Group()
+    scene.add(networkGroup)
 
-    const satellites: THREE.Mesh[] = []
-    const satelliteGeometries: THREE.BufferGeometry[] = []
-    const satelliteMaterials: THREE.Material[] = []
-    const satelliteGroup = new THREE.Group()
-    satelliteGroup.visible = false
+    for (let b = 0; b < 60; b++) {
+      // Start near center of the volume the camera travels through
+      const startR = rng() * 2.5
+      const sTheta = rng() * Math.PI * 2
+      const sPhi   = Math.acos(2 * rng() - 1)
+      const startZ = (rng() - 0.5) * 30 // z range -15..15 (camera travels -44..35)
 
-    for (const sd of satelliteData) {
-      const satBaseGeo = new THREE.IcosahedronGeometry(sd.size, 3)
-      const satGeo = satBaseGeo.toNonIndexed()
-      satBaseGeo.dispose()
-      const satPos = satGeo.attributes.position
-      for (let i = 0; i < satPos.count; i++) {
-        const x = satPos.getX(i)
-        const y = satPos.getY(i)
-        const z = satPos.getZ(i)
-        const len = Math.sqrt(x * x + y * y + z * z)
-        const d =
-          simplex3((x / len) * 2, (y / len) * 2, (z / len) * 2) * 0.15
-        satPos.setXYZ(
-          i,
-          x + (x / len) * d,
-          y + (y / len) * d,
-          z + (z / len) * d,
+      const pts: THREE.Vector3[] = [
+        new THREE.Vector3(
+          startR * Math.sin(sPhi) * Math.cos(sTheta),
+          startR * Math.sin(sPhi) * Math.sin(sTheta),
+          startZ,
+        ),
+      ]
+
+      // 7 more organic control points branching outward
+      for (let p = 1; p < 8; p++) {
+        const prev = pts[p - 1]
+        const stepSize = 2.0 + rng() * 3.5
+        const bTheta = rng() * Math.PI * 2
+        const bPhi   = Math.acos(2 * rng() - 1)
+        const candidate = new THREE.Vector3(
+          prev.x + stepSize * Math.sin(bPhi) * Math.cos(bTheta),
+          prev.y + stepSize * Math.sin(bPhi) * Math.sin(bTheta),
+          prev.z + (rng() - 0.5) * stepSize * 1.2,
         )
+        // Soft-clamp to sphere radius 18
+        if (candidate.length() > 18) {
+          candidate.normalize().multiplyScalar(14 + rng() * 4)
+        }
+        pts.push(candidate)
       }
-      satGeo.computeVertexNormals()
-      const satMat = new THREE.MeshStandardMaterial({
-        color: 0x1a1208,
-        roughness: 0.85,
-        metalness: 0.15,
-      })
-      const sat = new THREE.Mesh(satGeo, satMat)
-      sat.position.set(
-        Math.cos(sd.angle) * sd.distance,
-        0,
-        Math.sin(sd.angle) * sd.distance,
-      )
-      satellites.push(sat)
-      satelliteGeometries.push(satGeo)
-      satelliteMaterials.push(satMat)
-      satelliteGroup.add(sat)
-    }
-    scene.add(satelliteGroup)
 
-    // ============================================================
-    // ANIMATION STATE
-    // ============================================================
-    const camProxy = { x: 0, y: 0, z: 8, lookAtY: 0 }
+      const curve = new THREE.CatmullRomCurve3(pts)
+      branchCurves.push(curve)
+
+      // Radius: thicker near center origin
+      const originDist = pts[0].length()
+      const radius = originDist < 2
+        ? 0.06 + rng() * 0.04
+        : originDist < 7
+          ? 0.03 + rng() * 0.03
+          : 0.015 + rng() * 0.02
+
+      const geo = new THREE.TubeGeometry(curve, 80, radius, 6, false)
+      tubeGeometries.push(geo)
+
+      const matIdx = Math.floor(rng() * tubeMats.length)
+      networkGroup.add(new THREE.Mesh(geo, tubeMats[matIdx]))
+    }
+
+    // Sub-dendrites: 2-3 per main branch
+    for (let b = 0; b < 60; b++) {
+      const parentCurve = branchCurves[b]
+      const numSub = Math.floor(rng() * 2) + 2
+
+      for (let s = 0; s < numSub; s++) {
+        const tStart = 0.25 + rng() * 0.55
+        const origin = parentCurve.getPoint(tStart)
+        const subPts: THREE.Vector3[] = [origin]
+
+        for (let p = 1; p < 5; p++) {
+          const prev = subPts[p - 1]
+          const step = 1.0 + rng() * 2.0
+          subPts.push(new THREE.Vector3(
+            prev.x + (rng() - 0.5) * step * 2.2,
+            prev.y + (rng() - 0.5) * step * 2.2,
+            prev.z + (rng() - 0.5) * step,
+          ))
+        }
+
+        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(subPts), 40, 0.008 + rng() * 0.015, 4, false)
+        tubeGeometries.push(geo)
+        networkGroup.add(new THREE.Mesh(geo, subMats[Math.floor(rng() * subMats.length)]))
+      }
+    }
+
+    // ─── REGULAR SYNAPSE NODES (InstancedMesh) ─────────────────────────────
+    const regularPositions: THREE.Vector3[] = []
+    for (const curve of branchCurves) {
+      regularPositions.push(curve.getPoint(1.0))
+      regularPositions.push(curve.getPoint(0.5))
+    }
+    const synapseGeo = new THREE.SphereGeometry(0.09, 8, 8)
+    const synapseMat = new THREE.MeshStandardMaterial({
+      color: 0xC8E0FF,
+      emissive: new THREE.Color(0xC8E0FF),
+      emissiveIntensity: 1.2,
+      transparent: true,
+      opacity: 0.85,
+      roughness: 0.05,
+    })
+    const synapseInst = new THREE.InstancedMesh(synapseGeo, synapseMat, regularPositions.length)
+    const dummy = new THREE.Object3D()
+    for (let i = 0; i < regularPositions.length; i++) {
+      const scale = 0.4 + rng() * 1.2
+      dummy.position.copy(regularPositions[i])
+      dummy.scale.setScalar(scale)
+      dummy.updateMatrix()
+      synapseInst.setMatrixAt(i, dummy.matrix)
+    }
+    synapseInst.instanceMatrix.needsUpdate = true
+    networkGroup.add(synapseInst)
+
+    // ─── CAMERA PATH ────────────────────────────────────────────────────────
+    const pathPoints = [
+      new THREE.Vector3(0,   0,   35),
+      new THREE.Vector3(0,   0,   22),
+      new THREE.Vector3(-3,  1,   14),
+      new THREE.Vector3(-5,  3,   6),   // NODE 0
+      new THREE.Vector3(2,  -2,   0),
+      new THREE.Vector3(6,   1,  -8),   // NODE 1
+      new THREE.Vector3(-1,  4,  -15),
+      new THREE.Vector3(-4, -2,  -22),  // NODE 2
+      new THREE.Vector3(3,   2,  -29),
+      new THREE.Vector3(1,  -1,  -35),  // NODE 3
+      new THREE.Vector3(0,   0,  -44),  // CORE (node 4)
+    ]
+    const cameraPath = new THREE.CatmullRomCurve3(pathPoints)
+
+    // ─── MAJOR NODE MESHES + LIGHTS (at camera stops) ───────────────────────
+    const majorNodePositions = [pathPoints[3], pathPoints[5], pathPoints[7], pathPoints[9]]
+    const majorLights: THREE.PointLight[] = []
+    const majorNodeGeo = new THREE.SphereGeometry(0.4, 16, 16)
+    const majorNodeMats: THREE.Material[] = []
+
+    for (const pos of majorNodePositions) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xFFD4A0,
+        emissive: new THREE.Color(0xFFD4A0),
+        emissiveIntensity: 3.0,
+        roughness: 0.05,
+      })
+      majorNodeMats.push(mat)
+      const mesh = new THREE.Mesh(majorNodeGeo, mat)
+      mesh.position.copy(pos)
+      scene.add(mesh)
+
+      const light = new THREE.PointLight(0xFFD4A0, 1.0, 5)
+      light.position.copy(pos)
+      scene.add(light)
+      majorLights.push(light)
+    }
+
+    // ─── CORE COMMAND CENTER ────────────────────────────────────────────────
+    const corePos = pathPoints[10]
+    const coreGroup = new THREE.Group()
+    coreGroup.position.copy(corePos)
+    scene.add(coreGroup)
+
+    const nucleusGeo = new THREE.SphereGeometry(0.8, 32, 32)
+    const nucleusMat = new THREE.MeshStandardMaterial({
+      color: 0xFFD4A0,
+      emissive: new THREE.Color(0xFFD4A0),
+      emissiveIntensity: 5.0,
+      roughness: 0.05,
+    })
+    const nucleus = new THREE.Mesh(nucleusGeo, nucleusMat)
+    coreGroup.add(nucleus)
+
+    const coreLight = new THREE.PointLight(0xFFD4A0, 4.0, 25)
+    coreGroup.add(coreLight)
+
+    // 3 orbital rings, each tilted at different angle
+    const ringConfigs = [
+      { r: 2.0, count: 8,  tiltX: 0,    tiltZ: 0,    speed: 0.0035 },
+      { r: 3.5, count: 12, tiltX: 0.95, tiltZ: 0,    speed: -0.0022 },
+      { r: 5.0, count: 10, tiltX: 0.4,  tiltZ: 0.6,  speed: 0.0016 },
+    ]
+    const orbitalNodeGeo = new THREE.SphereGeometry(0.12, 8, 8)
+    const orbitalMat = new THREE.MeshStandardMaterial({
+      color: 0xFFD4A0,
+      emissive: new THREE.Color(0xFFD4A0),
+      emissiveIntensity: 2.2,
+      roughness: 0.05,
+    })
+
+    const ringGroups: { group: THREE.Group; speed: number }[] = []
+    for (const cfg of ringConfigs) {
+      const group = new THREE.Group()
+      group.rotation.x = cfg.tiltX
+      group.rotation.z = cfg.tiltZ
+      coreGroup.add(group)
+
+      const inst = new THREE.InstancedMesh(orbitalNodeGeo, orbitalMat, cfg.count)
+      const od = new THREE.Object3D()
+      for (let i = 0; i < cfg.count; i++) {
+        const angle = (i / cfg.count) * Math.PI * 2
+        od.position.set(Math.cos(angle) * cfg.r, 0, Math.sin(angle) * cfg.r)
+        od.updateMatrix()
+        inst.setMatrixAt(i, od.matrix)
+      }
+      inst.instanceMatrix.needsUpdate = true
+      group.add(inst)
+      ringGroups.push({ group, speed: cfg.speed })
+    }
+
+    // ─── ELECTRICAL PULSE POOL ──────────────────────────────────────────────
+    const POOL = 20
+    const pulseGeo = new THREE.SphereGeometry(0.05, 6, 6)
+    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
+
+    interface Pulse {
+      mesh: THREE.Mesh
+      active: boolean
+      curveIdx: number
+      t: number
+      speed: number
+    }
+    const pulses: Pulse[] = []
+    for (let i = 0; i < POOL; i++) {
+      const mesh = new THREE.Mesh(pulseGeo, pulseMat)
+      mesh.visible = false
+      scene.add(mesh)
+      pulses.push({ mesh, active: false, curveIdx: 0, t: 0, speed: 0 })
+    }
 
     let pulseTimer = 0
-    let pulseActive = false
-    let pulseDuration = 0
-    const PULSE_INTERVAL = 1500
-    const PULSE_DURATION = 600
+    let nextPulseIn = 0.4 + Math.random() * 0.5
+    let stormActive = false
+    let stormTime = 0
 
-    const clock = new THREE.Clock()
-
-    let isVisible = true
-    const onVisibilityChange = () => {
-      isVisible = document.visibilityState === 'visible'
+    function spawnPulse() {
+      const free = pulses.find(p => !p.active)
+      if (!free) return
+      free.active = true
+      free.curveIdx = Math.floor(Math.random() * branchCurves.length)
+      free.t = 0
+      free.speed = 1 / (0.8 + Math.random() * 1.2)
+      free.mesh.visible = true
     }
-    document.addEventListener('visibilitychange', onVisibilityChange)
 
-    // ============================================================
-    // RESIZE HANDLER
-    // ============================================================
+    function triggerStorm() {
+      stormActive = true
+      stormTime = 0
+      for (const p of pulses) {
+        p.active = true
+        p.curveIdx = Math.floor(Math.random() * branchCurves.length)
+        p.t = Math.random()
+        p.speed = 1 / (0.25 + Math.random() * 0.4)
+        p.mesh.visible = true
+      }
+    }
+
+    // ─── SCROLL PROXY ───────────────────────────────────────────────────────
+    const scrollProxy = { t: 0 }
+    let prevNode = -2
+    let coreTriggered = false
+
+    function getNode(t: number): number {
+      if (t > 0.94) return 4
+      if (t > 0.84) return 3
+      if (t > 0.65) return 2
+      if (t > 0.45) return 1
+      if (t > 0.26) return 0
+      return -1
+    }
+
+    // ─── RESIZE ─────────────────────────────────────────────────────────────
     const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight
       camera.updateProjectionMatrix()
@@ -284,171 +369,132 @@ export default function Scene({ onSectionChange }: SceneProps) {
     }
     window.addEventListener('resize', onResize)
 
-    // ============================================================
-    // RENDER LOOP
-    // ============================================================
+    let isVisible = true
+    const onVis = () => { isVisible = document.visibilityState === 'visible' }
+    document.addEventListener('visibilitychange', onVis)
+
+    // ─── RENDER LOOP ─────────────────────────────────────────────────────────
+    const clock = new THREE.Clock()
     let animId = 0
+
     const animate = () => {
       animId = requestAnimationFrame(animate)
       if (!isVisible) return
 
       const delta = clock.getDelta()
+      const t = scrollProxy.t
 
-      // Autonomous rotation — paused when camera is close (section 2)
-      const camDist = camera.position.z
-      if (camDist > 2.5) {
-        mainObject.rotation.y += 0.0003
-        mainObject.rotation.x += 0.00015
-      }
+      // Camera follows path
+      const camPos = cameraPath.getPoint(t)
+      camera.position.copy(camPos)
+      const lookT = Math.min(t + 0.055, 1)
+      camera.lookAt(cameraPath.getPoint(lookT))
 
-      // Satellite orbit
-      if (satelliteGroup.visible) {
-        satelliteGroup.rotation.y += 0.001
-      }
-
-      // Pulse animation
-      pulseTimer += delta * 1000
-      if (!pulseActive && pulseTimer > PULSE_INTERVAL) {
-        pulseActive = true
-        pulseDuration = 0
-        pulseTimer = 0
-      }
-      if (pulseActive) {
-        pulseDuration += delta * 1000
-        const t = pulseDuration / PULSE_DURATION
-        if (t >= 1) {
-          pulseActive = false
-          lineMat.opacity = 0.25
-        } else {
-          lineMat.opacity = 0.25 + 0.65 * Math.sin(t * Math.PI)
+      // Node detection
+      const node = getNode(t)
+      if (node !== prevNode) {
+        prevNode = node
+        onNodeChangeRef.current?.(node)
+        if (node === 4 && !coreTriggered) {
+          coreTriggered = true
+          triggerStorm()
         }
       }
 
-      // Apply camera from proxy
-      camera.position.set(camProxy.x, camProxy.y, camProxy.z)
-      camera.lookAt(0, camProxy.lookAtY ?? 0, 0)
+      // Pulse spawn
+      if (!stormActive) {
+        pulseTimer += delta
+        if (pulseTimer > nextPulseIn) {
+          spawnPulse()
+          pulseTimer = 0
+          nextPulseIn = 0.3 + Math.random() * 0.5
+        }
+      } else {
+        stormTime += delta
+        if (stormTime > 2) stormActive = false
+      }
+
+      // Move pulses
+      for (const p of pulses) {
+        if (!p.active) continue
+        p.t += delta * p.speed
+        if (p.t >= 1) {
+          p.active = false
+          p.mesh.visible = false
+          continue
+        }
+        p.mesh.position.copy(branchCurves[p.curveIdx].getPoint(p.t))
+      }
+
+      // Core animations
+      nucleus.rotation.x += delta * 0.15
+      nucleus.rotation.y += delta * 0.22
+      for (const r of ringGroups) {
+        r.group.rotation.y += r.speed
+      }
+
+      // Major node light pulse
+      const lp = (Math.sin(Date.now() * 0.0025) + 1) * 0.5
+      for (const l of majorLights) {
+        l.intensity = 0.5 + lp * 0.9
+      }
 
       renderer.render(scene, camera)
     }
     animate()
 
-    // ============================================================
-    // GSAP SCROLL JOURNEY — 5 sections across 0–600vh
-    // ============================================================
-    let killScrollTriggers: (() => void) | null = null
-
+    // ─── GSAP SCROLL TRIGGER ─────────────────────────────────────────────────
+    let killTriggers: (() => void) | null = null
     ;(async () => {
-      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      const gsap = await configureGSAP()
+      const { ScrollTrigger } = await import('gsap/ScrollTrigger')
 
-      // Only set up scroll animation if user hasn't requested reduced motion
-      if (!prefersReducedMotion) {
-        const gsap = await configureGSAP()
-        const { ScrollTrigger } = await import('gsap/ScrollTrigger')
+      gsap.to(scrollProxy, {
+        t: 1,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '#scroll-spacer',
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 2.0,
+        },
+      })
 
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: '#scroll-spacer',
-            start: 'top top',
-            end: 'bottom bottom',
-            scrub: 1.5,
-            onUpdate: (self) => {
-              const p = self.progress
-              const section =
-                p < 0.15 ? 0 : p < 0.35 ? 1 : p < 0.55 ? 2 : p < 0.75 ? 3 : 4
-              if (onSectionChange) onSectionChange(section)
-
-              // Show/hide satellites
-              satelliteGroup.visible = section === 3
-
-              // Section 4: activate all neural lines
-              if (section === 4) {
-                lineMat.opacity = 0.8
-              } else if (!pulseActive) {
-                lineMat.opacity = 0.25
-              }
-            },
-          },
-        })
-
-        // Camera keyframes via proxy
-        tl.to(
-          camProxy,
-          { z: 4, y: 0.5, duration: 0.2, ease: 'power2.inOut' },
-          0.15,
-        )
-        tl.to(
-          camProxy,
-          { z: 1.2, y: 0, duration: 0.2, ease: 'power2.inOut' },
-          0.35,
-        )
-        tl.to(
-          camProxy,
-          { z: 5, y: -0.5, duration: 0.2, ease: 'power2.inOut' },
-          0.55,
-        )
-        tl.to(
-          camProxy,
-          { z: 7, y: 0, duration: 0.2, ease: 'power2.inOut' },
-          0.75,
-        )
-
-        // Background shift via body background color
-        tl.to(document.body, { backgroundColor: '#EDE8E0', duration: 1 }, 0)
-
-        // Inner light intensity: stays 3 until section 4, then spikes to 8
-        tl.to(innerLight, { intensity: 8, duration: 0.1 }, 0.85)
-        tl.to(innerLight, { intensity: 3, duration: 0.1 }, 1.0)
-
-        killScrollTriggers = () => {
-          ScrollTrigger.getAll().forEach((t) => t.kill())
-          tl.kill()
-        }
-      }
+      killTriggers = () => ScrollTrigger.getAll().forEach(st => st.kill())
     })()
 
-    // ============================================================
-    // CLEANUP
-    // ============================================================
+    // ─── CLEANUP ─────────────────────────────────────────────────────────────
     return () => {
       cancelAnimationFrame(animId)
       window.removeEventListener('resize', onResize)
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-      if (killScrollTriggers) killScrollTriggers()
+      document.removeEventListener('visibilitychange', onVis)
+      killTriggers?.()
 
-      // Dispose main object
-      geometry.dispose()
-      material.dispose()
-
-      // Dispose neural network overlay
-      pointGeo.dispose()
-      pointMat.dispose()
-      lineGeo.dispose()
-      lineMat.dispose()
-
-      // Dispose satellites
-      satelliteGeometries.forEach((g) => g.dispose())
-      satelliteMaterials.forEach((m) => m.dispose())
-
-      // Dispose background atmosphere
-      bgGeo.dispose()
-      bgMat.dispose()
-      // topSpot has no extra dispose needed
-
+      tubeGeometries.forEach(g => g.dispose())
+      tubeMats.forEach(m => m.dispose())
+      subMats.forEach(m => m.dispose())
+      majorNodeMats.forEach(m => m.dispose())
+      starGeo.dispose()
+      starMat.dispose()
+      synapseGeo.dispose()
+      synapseMat.dispose()
+      majorNodeGeo.dispose()
+      pulseGeo.dispose()
+      pulseMat.dispose()
+      nucleusGeo.dispose()
+      nucleusMat.dispose()
+      orbitalNodeGeo.dispose()
+      orbitalMat.dispose()
+      disposeGroup(coreGroup)
       renderer.dispose()
     }
-  }, [onSectionChange])
+  }, [])
 
   return (
     <canvas
-      id="scene-canvas"
       ref={canvasRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1,
-        width: '100%',
-        height: '100%',
-      }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1, width: '100%', height: '100%' }}
     />
   )
 }
