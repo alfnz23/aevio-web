@@ -1,43 +1,15 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useRef } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
-import Navigation from '@/components/Navigation'
-import HeroSection from '@/components/HeroSection'
-import AgentsSection from '@/components/AgentsSection'
-import PackagesSection from '@/components/PackagesSection'
-import GrowthSection from '@/components/GrowthSection'
-import CTASection from '@/components/CTASection'
+import { useCallback, useEffect, useState } from 'react'
+import LoadingScreen from '@/components/LoadingScreen'
+import NodeContent from '@/components/NodeContent'
 
+const Scene = dynamic(() => import('@/components/Scene'), { ssr: false })
 const Cursor = dynamic(() => import('@/components/Cursor'), { ssr: false })
-
-// Wrapper that zooms in as it enters the viewport — "camera fly through" feel
-function ScrollSection({ children, id }: { children: React.ReactNode; id?: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
-  const scale = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], [1.06, 1, 1, 0.96])
-  const opacity = useTransform(scrollYProgress, [0, 0.12, 0.88, 1], [0, 1, 1, 0])
-
-  return (
-    <div ref={ref} id={id} style={{ height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      <motion.div style={{ scale, opacity, width: '100%', height: '100%' }}>
-        {children}
-      </motion.div>
-    </div>
-  )
-}
 
 // ─── Mobile fallback ──────────────────────────────────────────────────────────
 
 function MobileLayout() {
-  const sections = [
-    {
-      headline: ['Vaše firma.', 'Řízená inteligencí.', 'Nepřetržitě.'],
-      label: 'NEURAL_NET · ACTIVE · AGENTS · 7',
-      cta: false,
-    },
-  ]
-
   return (
     <main style={{ backgroundColor: '#030810', minHeight: '100vh' }}>
       {/* Hero */}
@@ -85,34 +57,49 @@ function MobileLayout() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  // Render mobile fallback client-side only
-  if (typeof window !== 'undefined' && window.innerWidth < 768) {
-    return <MobileLayout />
-  }
+  const [isMobile, setIsMobile] = useState(false)
+  const [loadProgress, setLoadProgress] = useState(0)
+  const [sceneReady, setSceneReady] = useState(false)
+  const [activeNode, setActiveNode] = useState(-1)
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768)
+  }, [])
+
+  // Simulate loading progress while scene initializes
+  useEffect(() => {
+    if (isMobile) return
+    let p = 0
+    const iv = setInterval(() => {
+      p += Math.random() * 0.18 + 0.04
+      if (p >= 1) { p = 1; clearInterval(iv) }
+      setLoadProgress(p)
+    }, 80)
+    return () => clearInterval(iv)
+  }, [isMobile])
+
+  const handleNodeChange = useCallback((node: number) => {
+    setActiveNode(node)
+  }, [])
+
+  const handleLoadComplete = useCallback(() => {
+    setSceneReady(true)
+  }, [])
+
+  if (isMobile) return <MobileLayout />
 
   return (
     <>
-      <Navigation />
+      <LoadingScreen progress={loadProgress} onComplete={handleLoadComplete} />
 
-      <ScrollSection id="hero">
-        <HeroSection />
-      </ScrollSection>
+      {/* Fixed Three.js canvas */}
+      <Scene onNodeChange={handleNodeChange} />
 
-      <ScrollSection id="agents">
-        <AgentsSection />
-      </ScrollSection>
+      {/* Framer Motion HTML overlay — node content */}
+      <NodeContent node={activeNode} />
 
-      <ScrollSection id="packages">
-        <PackagesSection />
-      </ScrollSection>
-
-      <ScrollSection id="growth">
-        <GrowthSection />
-      </ScrollSection>
-
-      <ScrollSection id="cta">
-        <CTASection />
-      </ScrollSection>
+      {/* Tall scroll spacer drives GSAP ScrollTrigger camera path */}
+      <div id="scroll-spacer" style={{ height: '1000vh', position: 'relative', zIndex: 0 }} />
 
       <Cursor />
     </>
